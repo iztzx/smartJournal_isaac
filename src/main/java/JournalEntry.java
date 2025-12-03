@@ -2,7 +2,7 @@ public class JournalEntry {
     private String date;
     private String content;
     private String weather;
-    private String mood; // Placeholder until sentiment analysis is implemented
+    private String mood;
 
     public JournalEntry(String date, String content, String weather, String mood) {
         this.date = date;
@@ -17,13 +17,4 @@ public class JournalEntry {
     public String getMood() { return mood; }
     
     public void setContent(String content) { this.content = content; }
-
-    @Override
-    public String toString() {
-        // Format for saving to file
-        return "DATE:" + date + "\n" +
-               "WEATHER:" + weather + "\n" +
-               "MOOD:" + mood + "\n" +
-               "CONTENT:\n" + content;
-    }
 }

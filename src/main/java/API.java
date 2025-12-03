@@ -3,15 +3,15 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.io.OutputStream; // Needed for POST
+import java.io.OutputStream; 
 
 public class API {
 
-    // Keep these for reference, but we primarily use the arguments passed in
+    // CRITICAL FIX: Updated to use the new Hugging Face router endpoint for the multilingual model
     public static final String MOOD_API_URL = "https://router.huggingface.co/hf-inference/models/tabularisai/multilingual-sentiment-analysis";
+
     /**
      * GENERIC GET REQUEST
-     * Can be used for Weather API, IP API, etc.
      */
     public static String get(String urlString) {
         try {
@@ -20,13 +20,12 @@ public class API {
             conn.setRequestMethod("GET");
             conn.setRequestProperty("Accept", "application/json");
             
-            // Simple timeout to prevent hanging if IP API is slow
+            // CRITICAL FIX: Increased timeout to 15 seconds (15000ms) to allow models to load
             conn.setConnectTimeout(15000); 
             conn.setReadTimeout(15000);
 
             return readResponse(conn);
         } catch (Exception e) {
-            // e.printStackTrace(); // Uncomment for debugging
             return null;
         }
     }
@@ -47,6 +46,10 @@ public class API {
             String token = EnvLoader.get("BEARER_TOKEN");
             if (token != null) conn.setRequestProperty("Authorization", "Bearer " + token);
 
+            // CRITICAL FIX: Increased timeout to 15 seconds (15000ms)
+            conn.setConnectTimeout(15000); 
+            conn.setReadTimeout(15000);
+            
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = jsonInputString.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
@@ -63,6 +66,7 @@ public class API {
         if (status >= 200 && status < 300) {
             br = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
         } else {
+            // Read error stream for debugging API errors
             br = new BufferedReader(new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8));
         }
         StringBuilder response = new StringBuilder();

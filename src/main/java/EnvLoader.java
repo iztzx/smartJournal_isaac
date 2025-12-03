@@ -4,10 +4,6 @@ import java.io.IOException;
 
 public class EnvLoader {
 
-    /**
-     * Scans the .env file for a specific key and returns its value.
-     * Example: If .env contains "BEARER_TOKEN=hf_12345", get("BEARER_TOKEN") returns "hf_12345".
-     */
     public static String get(String key) {
         String filePath = ".env"; // The file must be in the project root
         
