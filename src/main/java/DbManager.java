@@ -11,7 +11,7 @@ public class DbManager {
             Class.forName("org.postgresql.Driver");
         } catch (ClassNotFoundException e) {
             System.err.println("FATAL: PostgreSQL JDBC Driver not found. Check your classpath.");
-            // Do not print stack trace in final code
+            // Maven handles this, so this error means pom.xml is not run or the dependency failed.
         }
     }
 
@@ -22,26 +22,32 @@ public class DbManager {
             String dbUser = EnvLoader.get("DB_USER");
             String dbPassword = EnvLoader.get("DB_PASSWORD");
             
-            if (dbUrl == null || dbUser == null || dbPassword == null) {
-                System.err.println("FATAL: Database credentials missing in .env. Check DB_URL, DB_USER, DB_PASSWORD.");
+            // Defensive check for empty strings
+            if (dbUrl == null || dbUrl.isEmpty() || dbUser == null || dbUser.isEmpty() || dbPassword == null || dbPassword.isEmpty()) {
+                System.err.println("FATAL: Database credentials missing or empty in .env. Check DB_URL, DB_USER, DB_PASSWORD.");
                 return null;
             }
 
+            // CRITICAL FIX ATTEMPT: Construct the full URL string with credentials embedded.
+            // This format sometimes resolves parsing issues better than the three-argument method.
+            // Assumes DB_URL in .env is: "jdbc:postgresql://host:port/dbname"
+            String fullUrl = String.format("%s?user=%s&password=%s", dbUrl, dbUser, dbPassword);
+
             try {
-                // Establishes the connection using credentials
-                connection = DriverManager.getConnection(dbUrl, dbUser, dbPassword);
+                // Use the single-argument connection method
+                connection = DriverManager.getConnection(fullUrl); 
                 System.out.println("[DbManager] Connected to Supabase (PostgreSQL) successfully.");
             } catch (SQLException e) {
-                // Enhanced error reporting to debug external connection failures
                 System.err.println("[DbManager] ERROR: Could not establish database connection.");
                 System.err.println("SQL State: " + e.getSQLState());
                 System.err.println("Error Code: " + e.getErrorCode());
-                System.err.println("Details: " + e.getMessage()); // This will show "The connection attempt failed"
-                // Inform user about potential fixes
-                System.err.println("TROUBLESHOOTING:");
-                System.err.println("1. Check DB_PASSWORD for spaces or typos.");
-                System.err.println("2. Check your local firewall is not blocking port 5432.");
-                System.err.println("3. Check Supabase firewall/network settings.");
+                System.err.println("Details: " + e.getMessage());
+                
+                System.err.println("\n--- TROUBLESHOOTING CHECKLIST ---");
+                System.err.println("1. Verify Password: The password 'sjFOP@um123' must be correct for port 5432.");
+                System.err.println("2. Check .env: Ensure NO whitespace before or after '=' in .env file.");
+                System.err.println("3. Supabase Network: Temporarily disable 'Network Restrictions' on Supabase (if active).");
+                System.err.println("4. Local Firewall: Ensure local firewall is not blocking outbound port 5432.");
             }
         }
         return connection;
