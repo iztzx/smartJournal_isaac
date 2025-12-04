@@ -31,7 +31,8 @@ public class DbManager {
             // CRITICAL FIX ATTEMPT: Construct the full URL string with credentials embedded.
             // This format sometimes resolves parsing issues better than the three-argument method.
             // Assumes DB_URL in .env is: "jdbc:postgresql://host:port/dbname"
-            String fullUrl = String.format("%s?user=%s&password=%s", dbUrl, dbUser, dbPassword);
+            String separator = dbUrl.contains("?") ? "&" : "?";
+            String fullUrl = String.format("%s%suser=%s&password=%s&sslmode=require", dbUrl, separator, dbUser, dbPassword);
 
             try {
                 // Use the single-argument connection method
