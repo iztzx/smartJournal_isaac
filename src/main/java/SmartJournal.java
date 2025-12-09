@@ -1,107 +1,183 @@
 import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
-import javafx.application.Platform; 
+import javafx.application.Platform;
 import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 
 public class SmartJournal {
 
-    // Data Stores
     private final ObservableList<JournalEntry> entries = FXCollections.observableArrayList();
     private final ObservableList<JournalEntry> weeklyStats = FXCollections.observableArrayList();
-    
-    // Gamification
+
+    // Gamification properties bound to UI
     private final IntegerProperty xp = new SimpleIntegerProperty(0);
     private final IntegerProperty level = new SimpleIntegerProperty(1);
     private final IntegerProperty streak = new SimpleIntegerProperty(0);
-    
+
+    // Thread pool for background tasks
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final Gson gson = new Gson();
+
     private User currentUser;
 
-    public void setCurrentUser(User user) { this.currentUser = user; }
+    // Callback for UI
+    private Runnable onLevelUpCallback;
 
-    // --- BACKGROUND LOADERS ---
+    public void setCurrentUser(User user) {
+        this.currentUser = user;
+    }
+
+    public void setOnLevelUp(Runnable callback) {
+        this.onLevelUpCallback = callback;
+    }
+
+    public void shutdown() {
+        executor.shutdownNow();
+    }
+
+    // --- GREETING & QUOTES ---
+    public String getGreeting() {
+        int hour = LocalTime.now(ZoneId.of("GMT+8")).getHour();
+        return (hour < 12) ? "Good Morning" : (hour < 17) ? "Good Afternoon" : "Good Evening";
+    }
+
+    public String getDailyQuote(String mood) {
+        if (mood == null)
+            mood = "Neutral";
+        String[] quotes = switch (mood.toLowerCase()) {
+            case "positive" -> new String[] {
+                    "Keep your face always toward the sunshine—and shadows will fall behind you.",
+                    "Success is not final, failure is not fatal: it is the courage to continue that counts."
+            };
+            case "negative" -> new String[] {
+                    "Tough times never last, but tough people do.",
+                    "The best way out is always through. Keep going!",
+                    "Stars can't shine without darkness."
+            };
+            default -> new String[] {
+                    "Every day is a fresh start.",
+                    "Simplicity is the ultimate sophistication.",
+                    "Do what you can, with what you have, where you are."
+            };
+        };
+        return quotes[new Random().nextInt(quotes.length)];
+    }
+
+    public boolean isThemeUnlocked(String theme) {
+        int lvl = level.get();
+        return switch (theme) {
+            case "Light" -> true;
+            case "Dark" -> lvl >= 5;
+            case "Nature" -> lvl >= 10;
+            case "Ocean" -> lvl >= 15;
+            default -> false;
+        };
+    }
+
+    // --- DATA LOADING ---
     public void loadUserData() {
-        if (currentUser == null) return;
-        int[] stats = JournalManager.loadUserProgress(currentUser);
-        Platform.runLater(() -> {
-            streak.set(stats[0]);
-            xp.set(stats[1]);
-            level.set(stats[2]);
+        if (currentUser == null)
+            return;
+        executor.submit(() -> {
+            int[] stats = JournalManager.loadUserProgress(currentUser);
+            Platform.runLater(() -> {
+                streak.set(stats[0]);
+                xp.set(stats[1]);
+                level.set(stats[2]);
+            });
         });
     }
 
     public void loadHistory() {
-        if (currentUser == null) return;
-        List<JournalEntry> history = JournalManager.getRecentEntries(currentUser);
-        Platform.runLater(() -> {
-            entries.clear();
-            entries.addAll(history);
-        });
-    }
-    
-    public void loadWeeklySummary() {
-        if (currentUser == null) return;
-        List<JournalEntry> stats = JournalManager.getWeeklyStats(currentUser);
-        Platform.runLater(() -> {
-            weeklyStats.clear();
-            weeklyStats.addAll(stats);
+        if (currentUser == null)
+            return;
+        executor.submit(() -> {
+            List<JournalEntry> history = JournalManager.getRecentEntries(currentUser);
+            Platform.runLater(() -> {
+                entries.clear();
+                entries.addAll(history);
+                refreshWeeklyStats(); // NEW: Update stats when history loads
+            });
         });
     }
 
-    // --- MAIN LOGIC (THREAD SAFE FIX) ---
-    public JournalEntry processEntry(String text, String weather) {
-        if (text == null || text.trim().isEmpty()) return null;
-        
-        // 1. Sentiment Analysis (Heavy Work - Keep on Background Thread)
-        String mood = analyzeSentiment(text);
-        
-        // 2. Create Entry Object
-        JournalEntry entryObj = new JournalEntry(LocalDate.now(), text, mood, weather);
+    private void refreshWeeklyStats() {
+        LocalDate oneWeekAgo = LocalDate.now().minusDays(7);
+        List<JournalEntry> lastWeek = entries.stream()
+                .filter(e -> !e.getDate().isBefore(oneWeekAgo))
+                .sorted((a, b) -> b.getDate().compareTo(a.getDate()))
+                .toList();
+        weeklyStats.setAll(lastWeek);
+    }
 
-        // 3. Database Save (Heavy Work - Keep on Background Thread)
-        // Logic inside JournalManager handles upsert (insert or update), so it's safe to call here.
-        JournalManager.saveJournal(currentUser, entryObj);
+    // --- LOGIC ---
+    public void processEntry(LocalDate date, String text, String weather) {
+        if (text == null || text.trim().isEmpty())
+            return;
 
-        // 4. UI & State Updates (CRITICAL: Must run on JavaFX Application Thread)
-        Platform.runLater(() -> {
-            JournalEntry existingEntry = getTodayEntry();
+        executor.submit(() -> {
+            boolean isUpdate = false;
+            JournalEntry existing = getEntryForDate(date);
+            isUpdate = (existing != null);
 
-            if (existingEntry != null) {
-                // --- UPDATE EXISTING (Edit Mode) ---
-                int index = entries.indexOf(existingEntry);
-                if (index >= 0) {
-                    entries.set(index, entryObj); // Update the ObservableList
+            String mood = analyzeSentiment(text);
+            JournalEntry entryObj = new JournalEntry(date, text, mood, weather);
+
+            // 1. Save Journal Entry (Content)
+            JournalManager.saveJournal(currentUser, entryObj);
+
+            // 2. Calculate New Stats Locally
+            // Logic: 10 XP for update, 50+ chars for new.
+            int xpGained = isUpdate ? 10 : (50 + text.length());
+            int currentTotalXp = xp.get();
+            int newTotalXp = currentTotalXp + xpGained;
+
+            // Logic: Level = 1 + (XP / 500)
+            int currentLvl = level.get();
+            int newLvl = GamificationManager.calculateLevel(newTotalXp);
+
+            // Logic: Streak increments only if not updating existing
+            int newStreak = streak.get() + (isUpdate ? 0 : 1);
+
+            // 3. SYNC FULL PROGRESS TO DB
+            JournalManager.saveUserProgress(currentUser, newStreak, newTotalXp, newLvl);
+
+            boolean finalIsUpdate = isUpdate;
+            Platform.runLater(() -> {
+                // Update UI List
+                if (finalIsUpdate) {
+                    entries.removeIf(e -> e.getDate().equals(date));
                 }
-                // We don't update stats/streak on edits to prevent farming
-            } else {
-                // --- CREATE NEW ---
-                entries.add(0, entryObj); // Update the ObservableList
-                
-                // Gamification (Only on first entry)
-                updateStats(text.length());
-                
-                // Capture current stats to save to DB
-                int currentStreak = streak.get();
-                int currentXp = xp.get();
-                int currentLevel = level.get();
-                
-                // Save Stats to DB (Spawn new background thread to avoid freezing UI)
-                new Thread(() -> {
-                    JournalManager.saveUserProgress(currentUser, currentStreak, currentXp, currentLevel);
-                }).start();
-            }
+                entries.add(0, entryObj);
+                FXCollections.sort(entries, (a, b) -> b.getDate().compareTo(a.getDate()));
+
+                // Update UI Stats
+                xp.set(newTotalXp);
+                streak.set(newStreak);
+                level.set(newLvl);
+
+                if (newLvl > currentLvl && onLevelUpCallback != null) {
+                    onLevelUpCallback.run();
+                }
+            });
         });
-        
-        return entryObj;
     }
 
-    // Helper to retrieve today's entry
     public JournalEntry getTodayEntry() {
+        return getEntryForDate(LocalDate.now());
+    }
+
+    public JournalEntry getEntryForDate(LocalDate date) {
         for (JournalEntry entry : entries) {
-            if (entry.getDate().equals(LocalDate.now())) {
+            if (entry.getDate().equals(date)) {
                 return entry;
             }
         }
@@ -109,51 +185,40 @@ public class SmartJournal {
     }
 
     private String analyzeSentiment(String text) {
-        // Prepare JSON Payload
-        String safeText = text.replace("\"", "\\\"").replace("\n", " ");
-        String jsonBody = "{\"inputs\": \"" + safeText + "\"}";
+        try {
+            JsonObject jsonBody = new JsonObject();
+            jsonBody.addProperty("inputs", text);
 
-        // Call API
-        String responseBody = API.post(API.MOOD_API_URL, jsonBody);
-
-        if (responseBody == null) return "Unknown";
-
-        // Parse JSON Response
-        return parseBestSentiment(responseBody);
+            String responseBody = API.post(API.MOOD_API_URL, gson.toJson(jsonBody));
+            if (responseBody == null)
+                return "Unknown";
+            return parseBestSentiment(responseBody);
+        } catch (Exception e) {
+            return "Neutral";
+        }
     }
 
-    // Helper to parse the highest score from the JSON string
     private String parseBestSentiment(String json) {
         String bestLabel = "Neutral";
         double maxScore = -1.0;
-
-        Pattern pattern = Pattern.compile("\\{\"label\":\"(.*?)\",\"score\":([\\d\\.]+)\\}");
-        Matcher matcher = pattern.matcher(json);
-
+        java.util.regex.Pattern pattern = java.util.regex.Pattern
+                .compile("\\{\"label\":\"(.*?)\",\"score\":([\\d\\.]+)\\}");
+        java.util.regex.Matcher matcher = pattern.matcher(json);
         while (matcher.find()) {
             String label = matcher.group(1);
-            String scoreStr = matcher.group(2);
             try {
-                double score = Double.parseDouble(scoreStr);
+                double score = Double.parseDouble(matcher.group(2));
                 if (score > maxScore) {
                     maxScore = score;
                     bestLabel = label;
                 }
-            } catch (NumberFormatException ignored) {}
+            } catch (NumberFormatException ignored) {
+            }
         }
-        
-        return bestLabel; 
+        return bestLabel;
     }
 
-    private void updateStats(int charCount) {
-        int xpGained = 50 + charCount;
-        xp.set(xp.get() + xpGained);
-        int xpThreshold = level.get() * 500;
-        if (xp.get() >= xpThreshold) level.set(level.get() + 1);
-        streak.set(streak.get() + 1);
-    }
-
-    // --- DATA CLASS ---
+    // --- INNER CLASSES ---
     public static class JournalEntry {
         private final LocalDate date;
         private final String content;
@@ -167,16 +232,45 @@ public class SmartJournal {
             this.weather = weather;
         }
 
-        public LocalDate getDate() { return date; }
-        public String getContent() { return content; }
-        public String getAiMood() { return aiMood; }
-        public String getWeather() { return weather; }
+        public LocalDate getDate() {
+            return date;
+        }
+
+        public String getContent() {
+            return content;
+        }
+
+        public String getAiMood() {
+            return aiMood;
+        }
+
+        public String getWeather() {
+            return weather;
+        }
     }
 
-    // Getters
-    public ObservableList<JournalEntry> getEntries() { return entries; }
-    public ObservableList<JournalEntry> getWeeklyStats() { return weeklyStats; }
-    public IntegerProperty xpProperty() { return xp; }
-    public IntegerProperty levelProperty() { return level; }
-    public IntegerProperty streakProperty() { return streak; }
+    // --- GETTERS FOR UI BINDING ---
+    public ObservableList<JournalEntry> getEntries() {
+        return entries;
+    }
+
+    public ObservableList<JournalEntry> getWeeklyStats() {
+        return weeklyStats;
+    }
+
+    public int getLevel() {
+        return level.get();
+    }
+
+    public IntegerProperty levelProperty() {
+        return level;
+    }
+
+    public IntegerProperty streakProperty() {
+        return streak;
+    }
+
+    public IntegerProperty xpProperty() {
+        return xp;
+    }
 }

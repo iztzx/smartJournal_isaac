@@ -10,11 +10,6 @@ public class WeatherManager {
     // Added &timezone=auto to get local Malaysian time
     private static final String WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
 
-    static {
-        // Force IPv6 to ensure accurate detection (Skudai vs generic KL)
-        System.setProperty("java.net.preferIPv6Addresses", "true");
-    }
-
     // =============================================================
     // MAIN LOGIC
     // =============================================================

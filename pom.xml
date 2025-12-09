@@ -22,6 +22,37 @@
             <version>42.7.3</version> 
         </dependency>
 
+        <!-- Connection Pooling -->
+        <!--
+Source - https://stackoverflow.com/a
+Posted by Prasanna, modified by community. See post 'Timeline' for change history
+Retrieved 2025-12-08, License - CC BY-SA 4.0
+-->
+
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-simple</artifactId>
+            <version>2.0.17</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.zaxxer</groupId>
+            <artifactId>HikariCP</artifactId>
+            <version>5.1.0</version>
+        </dependency>
+
+        <!-- JSON Parsing -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+
         <!-- JavaFX Dependencies -->
         <dependency>
             <groupId>org.openjfx</groupId>
@@ -59,9 +90,6 @@
                     <!-- UPDATED: Pointing to the correct main application class -->
                     <mainClass>SmartJournalApp</mainClass>
                     <launcher>SmartJournalApp</launcher>
-                    <jvmArgs>
-                        <jvmArg>-Djava.net.preferIPv6Addresses=true</jvmArg>
-                    </jvmArgs>
                 </configuration>
             </plugin>
         </plugins>

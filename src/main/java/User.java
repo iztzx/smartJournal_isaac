@@ -12,4 +12,7 @@ public class User {
     public String getEmail() { return email; }
     public String getDisplayName() { return displayName; }
     public String getPassword() { return password; }
+
+    public void setDisplayName(String displayName) { this.displayName = displayName; }
+    public void setPassword(String password) { this.password = password; }
 }

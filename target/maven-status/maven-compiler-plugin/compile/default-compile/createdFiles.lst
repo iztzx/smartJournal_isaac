@@ -1,9 +1,15 @@
+SmartJournalApp$TimelineCell.class
 SmartJournal.class
+SmartJournalApp.class
 JournalEntry.class
+GamificationManager.class
 EnvLoader.class
+Quest.class
+Achievement.class
 SmartJournal$JournalEntry.class
 WeatherManager.class
 API.class
+DatabaseConnectionPool.class
 UserManager.class
 DbManager.class
 WeatherManager$LocationData.class
