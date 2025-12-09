@@ -432,9 +432,11 @@ public class SmartJournalApp extends Application {
                     cell.getValue().getWeather()));
             weatherCol.setPrefWidth(120);
 
-            table.getColumns().addAll(dateCol, moodCol, weatherCol);
+            table.getColumns().add(dateCol);
+            table.getColumns().add(moodCol);
+            table.getColumns().add(weatherCol);
             table.setItems(smartJournal.getWeeklyStats());
-            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+            table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
             table.setPrefHeight(200);
 
             // Row Factory for Color Coding
