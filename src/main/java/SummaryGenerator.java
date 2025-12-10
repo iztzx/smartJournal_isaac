@@ -122,13 +122,40 @@ public class SummaryGenerator {
 
             if (endQuote != -1) {
                 String content = jsonResponse.substring(startQuote + 1, endQuote);
-                // Unescape
-                return content.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
+                // Unescape basic JSON chars
+                content = content.replace("\\n", "\n").replace("\\\"", "\"").replace("\\\\", "\\");
+                // Unescape Unicode characters form
+                return unescapeUnicode(content);
             }
 
             return jsonResponse;
         } catch (Exception e) {
             return jsonResponse;
         }
+    }
+
+    private static String unescapeUnicode(String input) {
+        StringBuilder sb = new StringBuilder();
+        int i = 0;
+        while (i < input.length()) {
+            char c = input.charAt(i);
+            if (c == '\\' && i + 1 < input.length() && input.charAt(i + 1) == 'u') {
+                // Potential Unicode escape
+                try {
+                    String hex = input.substring(i + 2, i + 6);
+                    int codePoint = Integer.parseInt(hex, 16);
+                    sb.append((char) codePoint);
+                    i += 6;
+                } catch (Exception e) {
+                    // Not a valid unicode escape, treat as literal
+                    sb.append(c);
+                    i++;
+                }
+            } else {
+                sb.append(c);
+                i++;
+            }
+        }
+        return sb.toString();
     }
 }
