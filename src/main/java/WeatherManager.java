@@ -6,16 +6,9 @@ import java.time.format.DateTimeFormatter;
  * Designed to be robust, supporting IPv6 via ip2location.io.
  */
 public class WeatherManager {
-
-    // =============================================================
-    // CONFIGURATION
-    // =============================================================
     private static final String IP2LOC_BASE_URL = "https://api.ip2location.io/?";
     private static final String WEATHER_API_BASE = "https://api.open-meteo.com/v1/forecast";
 
-    // =============================================================
-    // DATA STRUCTURES
-    // =============================================================
     private static class LocationData {
         String city;
         double lat;
@@ -28,19 +21,12 @@ public class WeatherManager {
         }
     }
 
-    // =============================================================
-    // MAIN PUBLIC API
-    // =============================================================
-
     /**
-     * Fetches current weather based on the user's IP address.
-     * 
      * @param translateToEnglish if false, translates common terms to Malay.
      * @return Formatted string "City: Weather (Updated: Time)"
      */
     public static String getCurrentWeather(boolean translateToEnglish) {
         try {
-            // 1. Detect Location (Supports IPv4 & IPv6 via ip2location.io)
             System.out.println("[WeatherManager] Detecting location strategy: IP2Location...");
             LocationData loc = fetchLocationData();
 
@@ -50,15 +36,11 @@ public class WeatherManager {
             }
 
             System.out.println("[WeatherManager] Location found: " + loc.city);
-
-            // 2. Fetch Weather Data from Open-Meteo
             String weatherData = fetchWeatherData(loc);
 
             if (weatherData == null || weatherData.isEmpty()) {
                 return loc.city + ": Weather Data Unavailable";
             }
-
-            // 3. Parse and Format
             return parseAndFormatWeather(loc.city, weatherData, translateToEnglish);
 
         } catch (Exception e) {
@@ -66,10 +48,6 @@ public class WeatherManager {
             return "Weather Error";
         }
     }
-
-    // =============================================================
-    // INTERNAL HELPERS
-    // =============================================================
 
     private static LocationData fetchLocationData() {
         try {
@@ -79,14 +57,14 @@ public class WeatherManager {
                 return null;
             }
 
-            // The URL implicitly handles the IP of the requester (works great for IPv6)
+            // Fetches location data using IP2Location API
             String url = IP2LOC_BASE_URL + "key=" + key + "&format=json";
             String json = API.get(url);
 
             if (json == null)
                 return null;
 
-            // Simple robust JSON extraction
+            //JSON extraction
             String city = extractJsonValue(json, "city_name", 0);
             String latStr = extractJsonValue(json, "latitude", 0);
             String lonStr = extractJsonValue(json, "longitude", 0);
@@ -145,10 +123,6 @@ public class WeatherManager {
 
         return String.format("%s: %s (Updated: %s)", city, desc, formattedTime);
     }
-
-    // =============================================================
-    // UTILITIES
-    // =============================================================
 
     private static String extractJsonValue(String json, String key, int fromIndex) {
         String search = "\"" + key + "\":";
