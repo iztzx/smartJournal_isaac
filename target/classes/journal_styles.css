@@ -1,52 +1,73 @@
 /* --- GLOBAL VARIABLES (Premium Light Theme) --- */
+/* Base Variables (Nord Light) */
 .root {
-    -fx-font-family: 'Segoe UI', 'San Francisco', 'Helvetica Neue', sans-serif;
-    -color-bg: #f9fafb;
-    /* Slightly warmer/grayish white */
-    -color-surface: #ffffff;
-    -color-surface-elevated: #ffffff;
-    -color-text-primary: #111827;
-    -color-text-secondary: #6b7280;
+    -fx-font-family: 'Manrope', 'Segoe UI', 'Helvetica Neue', sans-serif;
 
-    /* Modern Blue Gradient Base */
-    -color-accent: #2563eb;
-    -color-accent-gradient: linear-gradient(to bottom right, #3b82f6, #2563eb);
+    /* Core Colors */
+    -color-bg: #eceff4;
+    -color-card-bg: #ffffff;
+    -color-text-primary: #2e3440;
+    -color-text-secondary: #4c566a;
+    -color-accent: #5e81ac;
+    /* Nord Blue */
+    -color-border: #d8dee9;
+
+    /* Derived/Alias Variables for Backward Compatibility */
+    -color-surface: -color-card-bg;
+    -color-surface-elevated: #ffffff;
+    -color-hover: #e5e9f0;
+
+    /* Accents & Gradients */
+    -color-accent-gradient: linear-gradient(to bottom right, #81a1c1, #5e81ac);
     -color-accent-fg: #ffffff;
 
-    -color-border: #e5e7eb;
-    -color-hover: #f3f4f6;
-
-    /* Semantic Colors */
-    -color-success-bg: #d1fae5;
+    /* Semantic */
+    -color-success: #a3be8c;
+    -color-success-bg: #e6f0e6;
+    /* Lighter approx */
     -color-success-fg: #065f46;
+    -color-error-fg: #bf616a;
     -color-error-bg: #fee2e2;
-    -color-error-fg: #991b1b;
 
+    -color-header-bg: #e5e9f0;
+
+    /* FX Defaults */
     -fx-base: -color-bg;
     -fx-background: -color-bg;
-    -fx-control-inner-background: -color-surface;
+    -fx-control-inner-background: -color-card-bg;
 }
 
+/* Dark Theme Variables (Nord Dark) */
 .root.dark-theme {
-    -color-bg: #111827;
-    /* Rich dark blue-gray */
-    -color-surface: #1f2937;
-    -color-surface-elevated: #374151;
-    -color-text-primary: #f9fafb;
-    -color-text-secondary: #9ca3af;
+    -color-bg: #242933;
+    /* Darker Nord */
+    -color-card-bg: #2e3440;
 
-    -color-accent: #3b82f6;
-    -color-accent-gradient: linear-gradient(to bottom right, #60a5fa, #3b82f6);
-    -color-accent-fg: #ffffff;
+    -color-text-primary: #eceff4;
+    -color-text-secondary: #d8dee9;
 
-    -color-border: #374151;
-    -color-hover: #374151;
-    /* Lighter than surface in dark mode */
+    -color-accent: #88c0d0;
+    /* Nord Cyan/Blue */
+    -color-border: #4c566a;
 
+    /* Derived/Alias */
+    -color-surface: -color-card-bg;
+    -color-surface-elevated: #3b4252;
+    -color-hover: #434c5e;
+
+    /* Accents */
+    -color-accent-gradient: linear-gradient(to bottom right, #8fbcbb, #88c0d0);
+    -color-accent-fg: #2e3440;
+    /* Dark text on bright accent */
+
+    /* Semantic */
+    -color-success: #a3be8c;
     -color-success-bg: #064e3b;
     -color-success-fg: #d1fae5;
+    -color-error-fg: #bf616a;
     -color-error-bg: #7f1d1d;
-    -color-error-fg: #fecaca;
+
+    -color-header-bg: #434c5e;
 }
 
 .root-pane {
@@ -495,4 +516,20 @@
     -fx-background-color: -color-accent-gradient;
     -fx-background-radius: 10;
     -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.4), 5, 0, 0, 1);
+}
+
+/* Fix ComboBox Text Visibility */
+.combo-box .list-cell {
+    -fx-text-fill: -color-text-primary;
+    -fx-background-color: -color-card-bg;
+}
+
+.combo-box .list-view {
+    -fx-background-color: -color-card-bg;
+}
+
+.combo-box-popup .list-view .list-cell:filled:selected,
+.combo-box-popup .list-view .list-cell:filled:hover {
+    -fx-background-color: -color-accent;
+    -fx-text-fill: white;
 }

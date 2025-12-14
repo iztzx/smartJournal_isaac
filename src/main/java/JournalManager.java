@@ -79,26 +79,29 @@ public class JournalManager {
     }
 
     // NEW: Fetch last 7 days for the Summary Page
-    public static List<SmartJournal.JournalEntry> getWeeklyStats(User user) {
+    // NEW: Fetch weekly stats based on explicit date range
+    public static List<SmartJournal.JournalEntry> getWeeklyStats(User user, LocalDate startDate, LocalDate endDate) {
         List<SmartJournal.JournalEntry> weekStats = new ArrayList<>();
         if (dbConnection == null)
             return weekStats;
 
-        // Get entries from the last 7 days
+        // Get entries within the date range
         String sql = "SELECT entry_date, content, mood, weather FROM journals " +
-                "WHERE user_email = ? AND entry_date >= CURRENT_DATE - INTERVAL '7 days' " +
+                "WHERE user_email = ? AND entry_date >= ? AND entry_date <= ? " +
                 "ORDER BY entry_date ASC";
 
         try (PreparedStatement ps = dbConnection.prepareStatement(sql)) {
             ps.setString(1, user.getEmail());
+            ps.setDate(2, Date.valueOf(startDate));
+            ps.setDate(3, Date.valueOf(endDate));
             ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 LocalDate date = rs.getDate("entry_date").toLocalDate();
                 String mood = rs.getString("mood");
                 String weather = rs.getString("weather");
-                // Content isn't needed for the chart, but we keep the object structure
-                weekStats.add(new SmartJournal.JournalEntry(date, "", mood, weather));
+                String content = rs.getString("content"); // Fetch content too for summary context
+                weekStats.add(new SmartJournal.JournalEntry(date, content, mood, weather));
             }
         } catch (SQLException e) {
             e.printStackTrace();

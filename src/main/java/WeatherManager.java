@@ -30,8 +30,10 @@ public class WeatherManager {
             System.out.println("[WeatherManager] Detecting location strategy: IP2Location...");
             LocationData loc = fetchLocationData();
 
-            if (loc == null) {
-                System.err.println("[WeatherManager] Location detection failed.");
+            if (loc == null || (loc.city != null && loc.city.startsWith("Error:"))
+                    || "Location Unavailable".equals(loc.city) || "Location Not Found".equals(loc.city)) {
+                if (loc != null)
+                    return loc.city;
                 return "Location Unavailable";
             }
 
@@ -54,7 +56,7 @@ public class WeatherManager {
             String key = EnvLoader.get("IP2LOCATION_KEY");
             if (key == null || key.isEmpty()) {
                 System.err.println("[WeatherManager] Missing IP2LOCATION_KEY in .env");
-                return null;
+                return new LocationData("Error: No API Key", 0, 0);
             }
 
             // Fetches location data using IP2Location API
@@ -62,9 +64,9 @@ public class WeatherManager {
             String json = API.get(url);
 
             if (json == null)
-                return null;
+                return new LocationData("Error: Connection Failed", 0, 0);
 
-            //JSON extraction
+            // JSON extraction
             String city = extractJsonValue(json, "city_name", 0);
             String latStr = extractJsonValue(json, "latitude", 0);
             String lonStr = extractJsonValue(json, "longitude", 0);
@@ -73,17 +75,20 @@ public class WeatherManager {
                 try {
                     double lat = Double.parseDouble(latStr);
                     double lon = Double.parseDouble(lonStr);
-                    if (city == null || city.equals("null"))
-                        city = "Unknown City";
+                    if (city == null || city.equals("null") || city.equals("-"))
+                        return new LocationData("Location Not Found", 0, 0); // Explicit error
+
                     return new LocationData(city, lat, lon);
                 } catch (NumberFormatException e) {
                     System.err.println("[WeatherManager] Error parsing coordinates: " + e.getMessage());
+                    return new LocationData("Error: Data Parse", 0, 0);
                 }
             }
         } catch (Exception e) {
             System.err.println("[WeatherManager] Location fetch error: " + e.getMessage());
+            return new LocationData("Error: Exception", 0, 0);
         }
-        return null;
+        return new LocationData("Location Unavailable", 0, 0);
     }
 
     private static String fetchWeatherData(LocationData loc) {

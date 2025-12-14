@@ -17,30 +17,30 @@ public class SummaryGenerator {
         prompt.append(
                 "Goal: Analyze the provided journal entries from the last week and generate a clear, empathetic, and insight-driven summary for the user. Avoid technical jargon like \"polarity\" or \"distribution.\" Focus on feelings, moments, and patterns.\n\n");
 
-        prompt.append("Input Data: Journal entries from the last 7 days.\n\n");
+        prompt.append("Input Data: Journal entries from the provided date range.\n\n");
 
         prompt.append("Output Structure & Requirements:\n");
         prompt.append(
                 "Generate the summary using the following four-part, simplified structure. Use **Markdown** formatting for bolding titles.\n\n");
 
-        prompt.append("1. ☀️ Your Weekly Vibe Check\n");
+        prompt.append("1. Your Weekly Vibe Check\n");
         prompt.append(
                 "Overall Feeling: Summarize the dominant emotional tone of the week in a short sentence or phrase.\n");
         prompt.append(
                 "Vibe Trend: Briefly mention how this week compared to typical days (based on the provided entries).\n\n");
 
-        prompt.append("2. 🌟 The Week's Key Moments\n");
+        prompt.append("2. The Week's Key Moments\n");
         prompt.append(
                 "Best Day/Highlight: Identify the happiest or most positive day and entry. State what happened or what you achieved that made it so good.\n");
         prompt.append(
                 "Toughest Day/Challenge: Identify the most challenging or negative day/entry. Briefly describe the main source of the difficulty.\n\n");
 
-        prompt.append("3. 🧠 What Drove Your Feelings?\n");
+        prompt.append("3. What Drove Your Feelings?\n");
         prompt.append(
                 "Top 3 Positive Fuel: What were the major themes that consistently made you feel good this week? (e.g., Time with Family, Creative Projects).\n");
         prompt.append("Top 3 Challenge Areas: What were the major themes that repeatedly brought down your mood?\n\n");
 
-        prompt.append("4. 💡 Your Reflection for Next Week\n");
+        prompt.append("4. Your Reflection for Next Week\n");
         prompt.append(
                 "The Big Takeaway: State one clear, simple observation that connects a positive action to a positive feeling this week.\n");
         prompt.append(

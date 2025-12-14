@@ -1,7 +1,5 @@
 import javafx.animation.FadeTransition;
-import javafx.animation.ParallelTransition;
 import javafx.animation.ScaleTransition;
-import javafx.animation.TranslateTransition;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
@@ -36,6 +34,9 @@ public class SmartJournalApp extends Application {
     @Override
     public void start(Stage primaryStage) {
         smartJournal = new SmartJournal();
+
+        // Initialize DB Schema
+        DbManager.initializeDatabase();
 
         // 1. Show Login.
         if (!showLoginDialog()) {
@@ -395,16 +396,63 @@ public class SmartJournalApp extends Application {
         dialog.setTitle(LanguageManager.get("settings.title"));
         dialog.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
 
-        GridPane grid = new GridPane();
-        grid.setHgap(20);
-        grid.setVgap(20);
-        grid.setPadding(new Insets(30));
+        TabPane tabPane = new TabPane();
+        tabPane.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabPane.setPrefSize(500, 350);
+
+        // --- TAB 1: GENERAL ---
+        GridPane generalGrid = new GridPane();
+        generalGrid.setHgap(20);
+        generalGrid.setVgap(20);
+        generalGrid.setPadding(new Insets(20));
+
+        ComboBox<String> langBox = new ComboBox<>();
+        langBox.getItems().addAll("English", "Bahasa Malaysia");
+        langBox.setValue(LanguageManager.getCurrentLanguage());
+        langBox.setPrefWidth(150);
+        langBox.setOnAction(e -> {
+            String selected = langBox.getValue();
+            if (!selected.equals(LanguageManager.getCurrentLanguage())) {
+                LanguageManager.setLanguage(selected);
+                dialog.close();
+                stage.close();
+                Platform.runLater(() -> {
+                    try {
+                        new SmartJournalApp().start(new Stage());
+                    } catch (Exception ex) {
+                    }
+                });
+            }
+        });
+
+        ComboBox<String> weekStartBox = new ComboBox<>();
+        weekStartBox.getItems().addAll("SUNDAY", "MONDAY", "SATURDAY");
+        weekStartBox.setValue(currentUser.getStartOfWeek());
+        weekStartBox.setPrefWidth(150);
+        weekStartBox.setOnAction(e -> {
+            String newStart = weekStartBox.getValue();
+            if (!newStart.equals(currentUser.getStartOfWeek())) {
+                new UserManager().updateProfile(currentUser, currentUser.getDisplayName(), null, newStart);
+            }
+        });
+
+        generalGrid.add(new Label(LanguageManager.get("settings.language")), 0, 0);
+        generalGrid.add(langBox, 1, 0);
+        generalGrid.add(new Label("Start of Week:"), 0, 1);
+        generalGrid.add(weekStartBox, 1, 1);
+
+        Tab generalTab = new Tab("General", generalGrid);
+
+        // --- TAB 2: APPEARANCE ---
+        GridPane appearGrid = new GridPane();
+        appearGrid.setHgap(20);
+        appearGrid.setVgap(20);
+        appearGrid.setPadding(new Insets(20));
 
         ComboBox<String> themeBox = new ComboBox<>();
         themeBox.getItems().addAll("Light", "Dark");
         themeBox.setValue(rootLayout.getStyleClass().contains("dark-theme") ? "Dark" : "Light");
         themeBox.setPrefWidth(150);
-
         themeBox.setOnAction(e -> {
             String selected = themeBox.getValue();
             if (selected.equals("Dark")) {
@@ -422,42 +470,29 @@ public class SmartJournalApp extends Application {
             }
         });
 
-        ComboBox<String> langBox = new ComboBox<>();
-        langBox.getItems().addAll("English", "Bahasa Malaysia");
-        langBox.setValue(LanguageManager.getCurrentLanguage());
-        langBox.setPrefWidth(150);
+        appearGrid.add(new Label(LanguageManager.get("settings.theme")), 0, 0);
+        appearGrid.add(themeBox, 1, 0);
 
-        langBox.setOnAction(e -> {
-            String selected = langBox.getValue();
-            if (!selected.equals(LanguageManager.getCurrentLanguage())) {
-                LanguageManager.setLanguage(selected);
-                dialog.close();
-                stage.close();
-                Platform.runLater(() -> {
-                    try {
-                        new SmartJournalApp().start(new Stage());
-                    } catch (Exception ex) {
-                    }
-                });
-            }
-        });
+        Tab appearTab = new Tab("Appearance", appearGrid);
 
-        grid.add(new Label(LanguageManager.get("settings.theme")), 0, 0);
-        grid.add(themeBox, 1, 0);
-        grid.add(new Label(LanguageManager.get("settings.language")), 0, 1);
-        grid.add(langBox, 1, 1);
+        // --- TAB 3: INFO / ACCOUNT ---
+        VBox infoBox = new VBox(15);
+        infoBox.setPadding(new Insets(20));
 
-        Label rewardsTitle = new Label("Unlocks:");
-        rewardsTitle.setStyle("-fx-font-weight: bold; -fx-padding: 10 0 0 0;");
+        Label rewardsTitle = new Label("Unlockable Themes:");
+        rewardsTitle.setStyle("-fx-font-weight: bold;");
         TextArea rewardsInfo = new TextArea("Lvl 5: Dark Theme\nLvl 10: Nature Theme\nLvl 15: Ocean Theme");
         rewardsInfo.setEditable(false);
-        rewardsInfo.setPrefHeight(80);
+        rewardsInfo.setPrefHeight(100);
         rewardsInfo.getStyleClass().add("text-area-readonly"); // Add specific styling if needed
 
-        grid.add(rewardsTitle, 0, 2);
-        grid.add(rewardsInfo, 0, 3, 2, 1);
+        infoBox.getChildren().addAll(rewardsTitle, rewardsInfo);
 
-        dialog.getDialogPane().setContent(grid);
+        Tab infoTab = new Tab("Info", infoBox);
+
+        tabPane.getTabs().addAll(generalTab, appearTab, infoTab);
+
+        dialog.getDialogPane().setContent(tabPane);
         if (getClass().getResource("/journal_styles.css") != null) {
             dialog.getDialogPane().getStylesheets().add(getClass().getResource("/journal_styles.css").toExternalForm());
         }
@@ -719,12 +754,8 @@ public class SmartJournalApp extends Application {
             icon.getStyleClass().add("achievement-icon");
             aBadge.getChildren().add(icon);
 
-            String tTitle = LanguageManager.get("ach." + a.getId() + ".title");
-            String tDesc = LanguageManager.get("ach." + a.getId() + ".desc");
-            if (tTitle.startsWith("ach."))
-                tTitle = a.getTitle();
-            if (tDesc.startsWith("ach."))
-                tDesc = a.getDescription();
+            String tTitle = a.getTitle();
+            String tDesc = a.getDescription();
 
             Tooltip t = new Tooltip(tTitle + "\n" + tDesc);
             t.setShowDelay(Duration.millis(100)); // Faster tooltip

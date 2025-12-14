@@ -27,14 +27,50 @@ public class GamificationManager {
     }
 
     // --- ACHIEVEMENTS ---
+    // --- ACHIEVEMENTS ---
     public static List<Achievement> getAchievements(User user) {
         List<Achievement> achievements = new ArrayList<>();
-        // In reality, query "user_achievements" table
-        // For now, hardcoded demo set
-        achievements.add(new Achievement("ach_1", "First Step", "Write your first entry", "📝", true));
-        achievements.add(new Achievement("ach_7", "Consistency", "7 Day Streak", "🔥", false));
-        achievements.add(new Achievement("ach_100", "Century", "Reach Level 100", "💯", false));
+        if (DbManager.getConnection() == null)
+            return achievements;
+
+        // Fetch all definitions + unlock status for this user
+        // LEFT JOIN ensures we get all achievements, and unlocked_at is non-null if
+        // user has it
+        String sql = "SELECT ad.id, ad.title, ad.description, ad.icon_char, ua.unlocked_at " +
+                "FROM achievement_definitions ad " +
+                "LEFT JOIN user_achievements ua ON ad.id = ua.achievement_id AND ua.user_email = ?";
+
+        try (Connection conn = DbManager.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getEmail());
+            try (java.sql.ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String id = rs.getString("id");
+                    String title = rs.getString("title");
+                    String desc = rs.getString("description");
+                    String icon = rs.getString("icon_char");
+                    boolean unlocked = rs.getTimestamp("unlocked_at") != null;
+
+                    achievements.add(new Achievement(id, title, desc, icon, unlocked));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
         return achievements;
+    }
+
+    public static void unlockAchievement(User user, String achievementId) {
+        // Insert if not exists
+        String sql = "INSERT INTO user_achievements (user_email, achievement_id) VALUES (?, ?) ON CONFLICT DO NOTHING";
+        try (Connection conn = DbManager.getConnection();
+                PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, user.getEmail());
+            ps.setString(2, achievementId);
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 
     // --- DB OPERATIONS ---

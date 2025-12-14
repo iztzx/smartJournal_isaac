@@ -21,15 +21,19 @@ public class UserManager {
         if (hashedPassword == null)
             return null; // Hashing fail
 
-        String sql = "SELECT email, display_name FROM users WHERE email = ? AND password_hash = ?";
+        String sql = "SELECT email, display_name, start_of_week FROM users WHERE email = ? AND password_hash = ?";
         try (PreparedStatement ps = dbConnection.prepareStatement(sql)) {
             ps.setString(1, email);
             ps.setString(2, hashedPassword);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     String displayName = rs.getString("display_name");
-                    // Return User object with hashed password (or handle it safely)
-                    return new User(email, displayName, hashedPassword);
+                    String startOfWeek = rs.getString("start_of_week");
+
+                    User user = new User(email, displayName, hashedPassword);
+                    if (startOfWeek != null)
+                        user.setStartOfWeek(startOfWeek);
+                    return user;
                 }
             }
         } catch (SQLException e) {
@@ -57,7 +61,7 @@ public class UserManager {
         if (hashedPassword == null)
             throw new RuntimeException("Secure hashing failed.");
 
-        String sql = "INSERT INTO users (email, display_name, password_hash) VALUES (?, ?, ?)";
+        String sql = "INSERT INTO users (email, display_name, password_hash, start_of_week) VALUES (?, ?, ?, 'SUNDAY')";
         try (PreparedStatement ps = dbConnection.prepareStatement(sql)) {
             ps.setString(1, email);
             ps.setString(2, displayName);
@@ -70,11 +74,11 @@ public class UserManager {
         }
     }
 
-    public boolean updateProfile(User user, String newName, String newPassword) {
+    public boolean updateProfile(User user, String newName, String newPassword, String newStartOfWeek) {
         if (dbConnection == null)
             return false;
 
-        String sql = "UPDATE users SET display_name = ?, password_hash = ? WHERE email = ?";
+        String sql = "UPDATE users SET display_name = ?, password_hash = ?, start_of_week = ? WHERE email = ?";
 
         String finalPassHash = user.getPassword(); // Default to old hash
         if (newPassword != null && !newPassword.trim().isEmpty()) {
@@ -86,17 +90,25 @@ public class UserManager {
         try (PreparedStatement ps = dbConnection.prepareStatement(sql)) {
             ps.setString(1, newName);
             ps.setString(2, finalPassHash);
-            ps.setString(3, user.getEmail());
+            ps.setString(3, newStartOfWeek);
+            ps.setString(4, user.getEmail());
             int rows = ps.executeUpdate();
             if (rows > 0) {
                 user.setDisplayName(newName);
                 user.setPassword(finalPassHash);
+                user.setStartOfWeek(newStartOfWeek);
                 return true;
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return false;
+    }
+
+    // Legacy overload method for backward compatibility if needed, though mainly
+    // refactoring
+    public boolean updateProfile(User user, String newName, String newPassword) {
+        return updateProfile(user, newName, newPassword, user.getStartOfWeek());
     }
 
     // --- HELPERS ---

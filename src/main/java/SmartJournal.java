@@ -2,9 +2,12 @@ import javafx.beans.property.*;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.application.Platform;
+import javafx.util.Pair;
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -254,8 +257,30 @@ public class SmartJournal {
         return entries;
     }
 
+    // Wrapper for getWeeklyStats that calculates the correct range
     public ObservableList<JournalEntry> getWeeklyStats() {
-        return weeklyStats;
+        Pair<LocalDate, LocalDate> range = getWeeklyDateRange(currentUser.getStartOfWeek());
+        List<JournalEntry> rawStats = JournalManager.getWeeklyStats(currentUser, range.getKey(), range.getValue());
+        return FXCollections.observableArrayList(rawStats);
+    }
+
+    // Helper: Determine the start and end of the current "week" based on user
+    // preference
+    public static Pair<LocalDate, LocalDate> getWeeklyDateRange(String startDayStr) {
+        LocalDate today = LocalDate.now();
+
+        DayOfWeek startDay = DayOfWeek.SUNDAY; // Default
+        try {
+            startDay = DayOfWeek.valueOf(startDayStr.toUpperCase());
+        } catch (Exception e) {
+            /* ignore */ }
+
+        // Logic: Find the most recent occurrence of the startDay (or today if today is
+        // startDay)
+        LocalDate weekStart = today.with(TemporalAdjusters.previousOrSame(startDay));
+        LocalDate weekEnd = today; // Analysis usually up to "now", or could be weekStart.plusDays(6)
+
+        return new Pair<>(weekStart, weekEnd);
     }
 
     public int getLevel() {
