@@ -8,7 +8,6 @@ JournalManager.class
 User.class
 SmartJournalApp$TimelineCell.class
 SmartJournal.class
-JournalEntry.class
 GamificationManager.class
 Achievement.class
 SmartJournal$JournalEntry.class

@@ -9,6 +9,8 @@ import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.stage.FileChooser;
+import java.io.File;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.util.Duration;
@@ -30,6 +32,7 @@ public class SmartJournalApp extends Application {
     private VBox timelineContainer;
     private Button addEntryBtn;
     private Label greetingLabel, quoteLabel;
+    private String currentSummaryText;
 
     @Override
     public void start(Stage primaryStage) {
@@ -586,10 +589,17 @@ public class SmartJournalApp extends Application {
 
             content.getChildren().addAll(table, assessmentLabel, summaryView);
 
+            Button exportPdfBtn = new Button("Export to PDF");
+            exportPdfBtn.getStyleClass().add("secondary-button");
+            exportPdfBtn.setOnAction(e -> exportSummaryToPDF());
+
+            content.getChildren().add(exportPdfBtn);
+
             new Thread(() -> {
                 try {
                     boolean isEnglish = "English".equals(LanguageManager.getCurrentLanguage());
                     String summary = SummaryGenerator.generate(smartJournal.getWeeklyStats(), isEnglish);
+                    currentSummaryText = summary;
                     Platform.runLater(() -> {
                         boolean darkTheme = rootLayout.getStyleClass().contains("dark-theme");
                         String htmlContent = MarkdownRenderer.renderHtml(summary, darkTheme);
@@ -610,6 +620,40 @@ public class SmartJournalApp extends Application {
             dialog.getDialogPane().getStylesheets().add(getClass().getResource("/journal_styles.css").toExternalForm());
         }
         dialog.showAndWait();
+    }
+
+    private void exportSummaryToPDF() {
+        if (currentSummaryText == null || currentSummaryText.isEmpty()) {
+            Alert alert = new Alert(Alert.AlertType.WARNING);
+            alert.setTitle("Export Failed");
+            alert.setHeaderText("No Summary Available");
+            alert.setContentText("Please wait for the summary to generate before exporting.");
+            alert.showAndWait();
+            return;
+        }
+
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Save Summary as PDF");
+        fileChooser.setInitialFileName("Weekly_Summary.pdf");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF Files", "*.pdf"));
+
+        File file = fileChooser.showSaveDialog(null);
+        if (file != null) {
+            boolean success = SummaryGenerator.exportToPDF(currentSummaryText, file.getAbsolutePath());
+            if (success) {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.setTitle("Export Successful");
+                alert.setHeaderText("PDF Exported");
+                alert.setContentText("Summary has been exported to " + file.getAbsolutePath());
+                alert.showAndWait();
+            } else {
+                Alert alert = new Alert(Alert.AlertType.ERROR);
+                alert.setTitle("Export Failed");
+                alert.setHeaderText("Error Exporting PDF");
+                alert.setContentText("An error occurred while exporting the PDF.");
+                alert.showAndWait();
+            }
+        }
     }
 
     private SplitPane createMainContent() {
@@ -747,8 +791,11 @@ public class SmartJournalApp extends Application {
         for (Achievement a : GamificationManager.getAchievements(currentUser)) {
             VBox aBadge = new VBox(5);
             aBadge.getStyleClass().add("achievement-badge");
-            if (!a.isUnlocked())
+            if (a.isUnlocked()) {
+                aBadge.getStyleClass().add("achievement-unlocked");
+            } else {
                 aBadge.setOpacity(0.4);
+            }
 
             Label icon = new Label(a.getIcon());
             icon.getStyleClass().add("achievement-icon");

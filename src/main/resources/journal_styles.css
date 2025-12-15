@@ -412,6 +412,12 @@
     -fx-effect: dropshadow(gaussian, rgba(37, 99, 235, 0.3), 8, 0, 0, 4);
 }
 
+.achievement-unlocked {
+    -fx-effect: dropshadow(gaussian, rgba(94, 129, 172, 0.5), 10, 0, 0, 0);
+    -fx-border-color: -color-accent;
+    -fx-border-width: 2;
+}
+
 .achievement-icon {
     -fx-font-size: 36px;
     -fx-text-fill: -color-text-primary;
